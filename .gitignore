@@ -1,5 +1,5 @@
 # ignore notes directorie
-notes/*
+z_notes/*
 
 # ignore log files and ignore files (duh)
 *.log

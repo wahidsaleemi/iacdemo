@@ -1,0 +1,328 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "tagvalues": {
+      "type": "object",
+      "defaultValue": {
+        "resourceOwner": "Specify a single point of contact.",
+        "environment": "Specify a environment type (dev, test, production).",
+        "costCenter": "Specify the cost center."
+      }
+    },
+    "webVmName": {
+      "type": "string"
+    },
+    "webVmName2": {
+      "type": "string"
+    },
+    "webVmSize": {
+      "type": "string"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "webSubnetRef": {
+      "type": "string",
+      "metadata": {
+        "description": "Subnet Name"
+      }
+    },
+    "webAvSetName": {
+      "type": "string"
+    },
+    "webLoadBalancerName": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "osDiskName": "[concat(parameters('webVmName'),'-osDisk')]",
+    "osDiskName2": "[concat(parameters('webVmName2'),'-osDisk')]",
+    "dataDiskName": "[concat(parameters('webVmName'),'-data1')]",
+    "dataDiskName2": "[concat(parameters('webVmName2'),'-data1')]",
+    "loadBalancerBackEnd": "[concat(parameters('webLoadBalancerName'), '-pool')]",
+    "lbprobe": "[concat(parameters('webLoadBalancerName'), '-probe')]",
+    "lbrule": "[concat(parameters('webLoadBalancerName'), '-rule')]"
+  },
+  "resources": [
+    {
+      "name": "[parameters('webAvSetName')]",
+      "type": "Microsoft.Compute/availabilitySets",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2019-07-01",
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "costCenter": "[parameters('tagvalues').costCenter]"
+      },
+      "properties": {
+        "platformFaultDomainCount": 2,
+        "platformUpdateDomainCount": 5
+      },
+      "sku": {
+        "name": "Aligned"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(parameters('webVmName'),'-nic')]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', parameters('webLoadBalancerName'))]"
+      ],
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "costCenter": "[parameters('tagvalues').costCenter]"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[parameters('WebSubnetRef')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('webLoadBalancerName')),'/backendAddressPools/',variables('loadBalancerBackEnd'))]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(parameters('webVmName2'),'-nic')]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', parameters('webLoadBalancerName'))]"
+      ],
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "costCenter": "[parameters('tagvalues').costCenter]"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[parameters('WebSubnetRef')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('webLoadBalancerName')),'/backendAddressPools/',variables('loadBalancerBackEnd'))]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "name": "[parameters('webLoadBalancerName')]",
+      "type": "Microsoft.Network/loadBalancers",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "loadBalancerFrontEnd",
+            "properties": {
+              "subnet": {
+                "id": "[parameters('WebSubnetRef')]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('loadBalancerBackEnd')]"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('webLoadBalancerName')), '/frontendIpConfigurations/loadBalancerFrontEnd')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('webLoadBalancerName')), '/backendAddressPools/', variables('loadBalancerBackEnd'))]"
+              },
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('webLoadBalancerName')), '/probes/', variables('lbprobe'))]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 80,
+              "backendPort": 80,
+              "idleTimeoutInMinutes": 15
+            },
+            "name": "[variables('lbrule')]"
+          }
+        ],
+        "probes": [
+          {
+            "properties": {
+              "protocol": "Tcp",
+              "port": 80,
+              "intervalInSeconds": 15,
+              "numberOfProbes": 2
+            },
+            "name": "[variables('lbprobe')]"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2020-12-01",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[parameters('webVmName')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "costCenter": "[parameters('tagvalues').costCenter]"
+      },
+      "dependsOn": [
+        "[concat(parameters('webVmName'),'-nic')]",
+        "[concat('Microsoft.Compute/availabilitySets/', parameters('webAvSetName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "VmSize": "[parameters('webVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('webVmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true
+          }
+        },
+        "storageProfile": {
+          "osDisk": {
+            "name": "[variables('osDiskname')]",
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          },
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2019-datacenter-gensecond",
+            "version": "latest"
+          },
+          "dataDisks": [
+            {
+              "lun": 0,
+              "name": "[variables('dataDiskName')]",
+              "createOption": "Empty",
+              "diskSizeGB": 10
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('webVmName'),'-nic'))]"
+            }
+          ]
+        },
+        "licenseType": "Windows_Server",
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets',parameters('webAvSetName'))]"
+        }
+      }
+    },
+    {
+      "apiVersion": "2020-12-01",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[parameters('webVmName2')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "costCenter": "[parameters('tagvalues').costCenter]"
+      },
+      "dependsOn": [
+        "[concat(parameters('webVmName2'),'-nic')]",
+        "[concat('Microsoft.Compute/availabilitySets/', parameters('webAvSetName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "VmSize": "[parameters('webVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('webVmName2')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true
+          }
+        },
+        "storageProfile": {
+          "osDisk": {
+            "name": "[variables('osDiskName2')]",
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          },
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2019-datacenter-gensecond",
+            "version": "latest"
+          },
+          "dataDisks": [
+            {
+              "lun": 0,
+              "name": "[variables('dataDiskName2')]",
+              "createOption": "Empty",
+              "diskSizeGB": 10
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('webVmName2'),'-nic'))]"
+            }
+          ]
+        },
+        "licenseType": "Windows_Server",
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets',parameters('webAvSetName'))]"
+        }
+      }
+    }
+] 
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "tags": {
+      "value": {
+        "CostCenter": "04181",
+        "Environment": "production",
+        "Product": "Workload Network"
+      }
+    },
+    "vnetName": {
+      "value": "sz-servers-ue2-p-vnt-01"
+    },
+    "vnetAddressPrefixes": {
+      "value": ["172.21.4.0/23"]
+    },
+    "subnets": {
+      "value": [
+        {
+          "name": "sz-servers-appgw-ue2-d-nsn-172.21.4.0_26",
+          "addressPrefix": "172.21.4.0/26",
+          "networkSecurityGroupName": "",
+          "routeTableName": "",
+          "serviceEndpoints": [
+            {
+              "service": "Microsoft.EventHub"
+            },
+            {
+              "service": "Microsoft.Sql"
+            },
+            {
+              "service": "Microsoft.Storage",
+              "locations": ["eastus2"]
+            },
+            {
+              "service": "Microsoft.KeyVault"
+            },
+            {
+              "service": "Microsoft.AzureActiveDirectory"
+            }
+          ]
+        },
+        {
+          "name": "sz-servers-sqlmi-ue2-d-nsn-172.21.4.64_26",
+          "addressPrefix": "172.21.4.64/26",
+          "networkSecurityGroupName": "sz-server-default-p-nsg-01",
+          "routeTableName": "",
+          "serviceEndpoints": [
+            {
+              "service": "Microsoft.EventHub"
+            },
+            {
+              "service": "Microsoft.Storage",
+              "locations": ["eastus2"]
+            },
+            {
+              "service": "Microsoft.KeyVault"
+            },
+            {
+              "service": "Microsoft.AzureActiveDirectory"
+            }
+          ]
+        },
+        {
+          "name": "sz-servers-vm-ue2-d-nsn-172.21.5.0_24",
+          "addressPrefix": "172.21.5.0/24",
+          "networkSecurityGroupName": "",
+          "routeTableName": "",
+          "serviceEndpoints": [
+            {
+              "service": "Microsoft.EventHub"
+            },
+            {
+              "service": "Microsoft.Storage",
+              "locations": ["eastus2"]
+            },
+            {
+              "service": "Microsoft.KeyVault"
+            },
+            {
+              "service": "Microsoft.AzureActiveDirectory"
+            }
+          ]
+        }
+      ]
+    },
+    "dnsServers": {
+      "value": ["172.21.3.10", "172.21.3.11"]
+    },
+    "lockForDeletion": {
+      "value": false
+    }
+  }
+}

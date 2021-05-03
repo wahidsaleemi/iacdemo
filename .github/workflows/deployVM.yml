@@ -1,26 +1,35 @@
+name: Deploy ARM Template
 on: [push]
-name: Azure ARM
 jobs:
-  build-and-deploy:
+  build-and-deploy-template:
     runs-on: ubuntu-latest
     steps:
 
       # Checkout code
-    - uses: actions/checkout@main
+      - name: Checkout source code
+        uses: actions/checkout@main
 
       # Log into Azure
-    - uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Create the Resource Group
+      - name: Create Resource Group
+        run: |
+          az group create -l 'southcentralus' -n 'rg-iacdemo-dev'
 
       # Deploy ARM template
-    - name: Run ARM deploy
-      uses: azure/arm-deploy@v1
-      with:
-        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
-        resourceGroupName: ${{ secrets.AZURE_RG }}
-        template: ./app-iacdemo/azuredeploy.json
-        parameters: ./app-iacdemo/azuredeploy.parameters.json
-
+      - name: Deploy ARM template for app
+        uses: azure/arm-deploy@v1
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ secrets.AZURE_RG }}
+          template: ./app-iacdemo-gh/azuredeploy.json
+          parameters: 
+            ./app-iacdemo-gh/azuredeploy.parameters.json
+            adminPassword=${{ secrets.AZURE_ADMIN_PASSWORD }}
       # output containerName variable from template
-    - run: echo ${{ steps.deploy.outputs.containerName }}
+      - run: echo ${{ steps.deploy.outputs.containerName }}

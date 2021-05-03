@@ -1,0 +1,196 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "tagvalues": {
+      "type": "object",
+      "defaultValue": {
+        "resourceOwner": "Specify a single point of contact.",
+        "environment": "Specify a environment type (dev, test, production).",
+        "engagement": "Specify the cost center."
+      }
+    },
+    "storageAccountNamePrefix": {
+      "type": "string"
+    },
+    "SqlVmName": {
+      "type": "string"
+    },
+    "SqlVmName2": {
+      "type": "string"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "ResourceGroupForVNET": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource Group Name for Vnet"
+      }
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "metadata": {
+        "description": "Virtual Network Name"
+      }
+    },
+    "SqlSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Subnet Name"
+      }
+    },
+    "SQLAvSetName": {
+      "type": "string"
+    },
+    "SQLLoadBalancerName": {
+      "type": "string"
+    },
+    "sqlDataSizeTB": {
+      "type": "int",
+      "metadata": {
+        "description": "Number of Terrabytes for the SQL Data Disk (Depends on SQL Server VM Size, max 32). Feeds numDataDisk."
+      },
+      "defaultValue" : 16,
+      "maxValue": 32
+    },
+    "sqlLogSizeTB": {
+      "type": "int",
+      "metadata": {
+        "description": "Number of Terrabytes for the SQL Log Disk (Depends on SQL Server VM Size, max 32). Feeds numLogDisk."
+      },
+      "defaultValue": 1,
+      "maxValue": 3
+    },
+    "webVmName": {
+      "type": "string"
+    },
+    "webVmName2": {
+      "type": "string"
+    },
+    "webSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Subnet Name"
+      }
+    },
+    "webAvSetName": {
+      "type": "string"
+    },
+    "webLoadBalancerName": {
+      "type": "string"
+    },
+    "baseUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Template Base URL"
+      },
+      "defaultValue": "https://raw.githubusercontent.com/wahidsaleemi/iacdemo/main/app-iacdemo-gh"
+    }
+  },
+  "variables": {
+    "StorageAccountName": "[concat(parameters('storageAccountNamePrefix'),'vms')]",
+    "vnetID": "[resourceId(parameters('ResourceGroupForVNET'), 'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+    "webSubnetRef": "[concat(variables('vnetID'),'/subnets/',parameters('webSubnetName'))]",
+    "SqlSubnetRef": "[concat(variables('vnetID'),'/subnets/',parameters('SqlSubnetName'))]",
+    "assetLocations": {
+      "CreateWebServersJSON": "[concat(parameters('baseUrl'), '/infra-webservers.json')]",
+      "CreateSQLServersJSON": "[concat(parameters('baseUrl'), '/infra-sqlservers.json')]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat('createSQLServerVM')]",
+      "apiVersion": "2020-10-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('assetLocations').CreateSQLServersJSON]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+                    "tagvalues": {
+            "value": "[parameters('tagvalues')]"
+          },
+          "storageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "SqlVmSize": {
+            "value": "Standard_D2s_v4"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "SqlVmName": {
+            "value": "[parameters('SqlVmName')]"
+          },
+          "SqlVmName2": {
+            "value": "[parameters('SqlVmName2')]"
+          },
+          "SqlAvSetName": {
+            "value": "[parameters('SqlAvSetName')]"
+          },
+          "SqlLoadBalancerName": {
+            "value": "[parameters('SqlLoadBalancerName')]"
+          },
+          "SqlPortNumber": {
+            "value": 1433
+          },
+          "SqlSubnetRef": {
+            "value": "[variables('SqlSubnetRef')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "createWebServerVM",
+      "apiVersion": "2020-10-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('assetLocations').CreateWebServersJSON]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "tagvalues": {
+            "value": "[parameters('tagvalues')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "WebVmName": {
+            "value": "[parameters('WebVmName')]"
+          },
+          "WebVmName2": {
+            "value": "[parameters('WebVmName2')]"
+          },
+          "webAvSetName": {
+            "value": "[parameters('webAvSetName')]"
+          },
+          "webLoadBalancerName": {
+            "value": "[parameters('webLoadBalancerName')]"
+          },
+          "webVmSize": {
+            "value": "Standard_D2s_v4"
+          },
+          "webSubnetRef": {
+            "value": "[variables('webSubnetRef')]"
+          }
+        }
+      }
+    }
+  ]
+}

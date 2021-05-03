@@ -1,0 +1,483 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "tagvalues": {
+      "type": "object",
+      "defaultValue": {
+        "resourceOwner": "Specify a single point of contact.",
+        "environment": "Specify a environment type (dev, test, production).",
+        "engagement": "Specify the cost center."
+      }
+    },
+    "storageAccountName": {
+      "type": "string"
+    },
+    "SQLVmName": {
+      "type": "string"
+    },
+    "SQLVmName2": {
+      "type": "string"
+    },
+    "SQLVmSize": {
+      "type": "string"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "SQLSubnetRef": {
+      "type": "string",
+      "metadata": {
+        "description": "Subnet Reference from main template"
+      }
+    },
+    "SQLAvSetName": {
+      "type": "string"
+    },
+    "SQLLoadBalancerName": {
+      "type": "string"
+    },
+    "sqlPortNumber": {
+      "type": "int"
+    },
+    "numDataDisks": {
+      "type": "int"
+    },
+    "numLogDisks": {
+      "type": "int"
+    },
+    "sizeOfDiskInGB": {
+      "type": "int"
+    }
+  },
+  "variables": {
+
+    "sqlImagePublisher": "MicrosoftSQLServer",
+    "sqlImageOffer": "sql2019-ws2019",
+    "sqlImageSKU": "enterprisedbengineonly",
+    "SQLosDiskName": "[concat(parameters('sqlVmName'),'-osDisk')]",
+    "SQLosDiskName2": "[concat(parameters('sqlVmName2'),'-osDisk')]",
+    "SQLdataDiskName": "[concat(parameters('sqlVmName'),'-data1')]",
+    "SQLdataDiskName2": "[concat(parameters('sqlVmName2'),'-data1')]",
+    "SqlLoadBalancerBackEnd": "[concat(parameters('sqlLoadBalancerName'), '-pool')]",
+    "lbprobe": "[concat(parameters('sqlLoadBalancerName'), '-probe')]",
+    "lbrule": "[concat(parameters('sqlLoadBalancerName'), '-ao-rule')]"
+  },
+  "resources": [
+    {
+      "name": "[parameters('SQLAvSetName')]",
+      "type": "Microsoft.Compute/availabilitySets",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-04-30-preview",
+      "dependsOn": [],
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "engagement": "[parameters('tagvalues').engagement]"
+      },
+      "properties": {
+        "platformFaultDomainCount": 3,
+        "platformUpdateDomainCount": 5
+      },
+      "sku": {
+        "name": "Aligned"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(parameters('SQLVmName'),'-nic')]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', parameters('SqlLoadBalancerName'))]"
+      ],
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "engagement": "[parameters('tagvalues').engagement]"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[parameters('SqlSubnetRef')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('SQLLoadBalancerName')),'/backendAddressPools/',variables('SQLloadBalancerBackEnd'))]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(parameters('SQLVmName2'),'-nic')]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', parameters('SqlLoadBalancerName'))]"
+      ],
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "engagement": "[parameters('tagvalues').engagement]"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[parameters('SqlSubnetRef')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('SQLLoadBalancerName')),'/backendAddressPools/',variables('SQLloadBalancerBackEnd'))]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "name": "[parameters('sqlLoadBalancerName')]",
+      "type": "Microsoft.Network/loadBalancers",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "loadBalancerFrontEnd",
+            "properties": {
+              "subnet": {
+                "id": "[parameters('sqlSubnetRef')]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('SqlLoadBalancerBackEnd')]"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "name": "[variables('lbrule')]",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('SqlLoadBalancerName')), '/frontendIpConfigurations/loadBalancerFrontEnd')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('SqlLoadBalancerName')), '/backendAddressPools/', variables('SqlLoadBalancerBackEnd'))]"
+              },
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('SqlLoadBalancerName')), '/probes/', variables('lbprobe'))]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 1433,
+              "backendPort": 1433,
+              "enableFloatingIP": true
+            }
+          }
+        ],
+        "probes": [
+          {
+            "name": "[variables('lbprobe')]",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 59999,
+              "intervalInSeconds": 5,
+              "numberOfProbes": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[parameters('storageAccountName')]",
+      "apiVersion": "2016-01-01",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "engagement": "[parameters('tagvalues').engagement]"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage",
+      "properties": {
+      }
+    },
+    {
+      "apiVersion": "2020-12-01",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[parameters('SQLvmName')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "engagement": "[parameters('tagvalues').engagement]"
+      },
+      "dependsOn": [
+        "[concat(parameters('SQLvmName'),'-nic')]",
+        "[concat('Microsoft.Compute/availabilitySets/', parameters('sqlAvSetName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('sqlVMSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('SQLvmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true,
+            "patchSettings": {
+              "patchMode": "AutomaticByOS"
+            }
+          },
+          "allowExtensionOperations": true
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('sqlImagePublisher')]",
+            "offer": "[variables('sqlImageOffer')]",
+            "sku": "[variables('sqlImageSKU')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[variables('SqlosDiskName')]",
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          },
+          "dataDisks": [
+            {
+              "name": "[concat(parameters('SQLvmName'), '-disk-1')]",
+              "createOption": "empty",
+              "lun": 0,
+              "diskSizeGB": 31,
+              "caching": "ReadOnly"
+            },
+            {
+              "name": "[concat(parameters('SQLvmName'), '-disk-2')]",
+              "createOption": "empty",
+              "lun": 1,
+              "diskSizeGB": 31,
+              "caching": "ReadOnly"
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('SQLvmName'),'-nic'))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets',parameters('SqlAvSetName'))]"
+        }
+      }
+    },
+    {
+      "apiVersion": "2020-12-01",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[parameters('SQLvmName2')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "resourceOwner": "[parameters('tagvalues').resourceOwner]",
+        "environment": "[parameters('tagvalues').environment]",
+        "engagement": "[parameters('tagvalues').engagement]"
+      },
+      "dependsOn": [
+        "[concat(parameters('SQLvmName2'),'-nic')]",
+        "[concat('Microsoft.Compute/availabilitySets/', parameters('sqlAvSetName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('sqlVMSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('SQLvmName2')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true,
+            "patchSettings": {
+              "patchMode": "AutomaticByOS"
+            }
+          },
+          "allowExtensionOperations": true
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('sqlImagePublisher')]",
+            "offer": "[variables('sqlImageOffer')]",
+            "sku": "[variables('sqlImageSKU')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[variables('SqlosDiskName2')]",
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          },
+          "dataDisks": [
+            {
+              "name": "[concat(parameters('SQLvmName2'), '-disk-1')]",
+              "createOption": "empty",
+              "lun": 0,
+              "diskSizeGB": 31,
+              "caching": "ReadOnly"
+            },
+            {
+              "name": "[concat(parameters('SQLvmName2'), '-disk-2')]",
+              "createOption": "empty",
+              "lun": 1,
+              "diskSizeGB": 31,
+              "caching": "ReadOnly"
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('SQLvmName2'),'-nic'))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets',parameters('SqlAvSetName'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.SqlVirtualMachine/sqlVirtualMachines",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[parameters('SQLVmName')]",
+      "location": "southcentralus",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', parameters('SQLVmName'))]"
+      ],
+      "properties": {
+        "virtualMachineResourceId": "[resourceId('Microsoft.Compute/virtualMachines', parameters('SQLVmName'))]",
+        "sqlImageOffer": "SQL2019-WS2019",
+        "sqlServerLicenseType": "AHUB",
+        "sqlManagement": "Full",
+        "sqlImageSku": "Enterprise",
+        "AutoTelemetrySettings": {
+          "Region": "[resourceGroup().location]"
+        },
+        "autoPatchingSettings": {
+          "Enable": true,
+          "DayOfWeek": "Sunday",
+          "MaintenanceWindowStartingHour": "2",
+          "MaintenanceWindowDuration": "60"
+        },
+        "KeyVaultCredentialSettings": {
+          "Enable": false
+        },
+        "ServerConfigurationsManagementSettings": {
+          "SQLConnectivityUpdateSettings": {
+            "ConnectivityType": "Private",
+            "Port": "[parameters('sqlPortNumber')]"
+          },
+          "SQLWorkloadTypeUpdateSettings": {
+            "SQLWorkloadType": "OLTP"
+          },
+          "SQLStorageUpdateSettings": {
+            "DiskCount": 2,
+            "StartingDeviceID": 1,
+            "DiskConfigurationType": "NEW"
+          },
+          "AdditionalFeaturesServerConfigurations": {
+            "IsRServicesEnabled": "false"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.SqlVirtualMachine/sqlVirtualMachines",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[parameters('SQLVmName2')]",
+      "location": "southcentralus",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', parameters('SQLVmName2'))]"
+      ],
+      "properties": {
+        "virtualMachineResourceId": "[resourceId('Microsoft.Compute/virtualMachines', parameters('SQLVmName2'))]",
+        "sqlImageOffer": "SQL2019-WS2019",
+        "sqlServerLicenseType": "AHUB",
+        "sqlManagement": "Full",
+        "sqlImageSku": "Enterprise",
+        "AutoTelemetrySettings": {
+          "Region": "[resourceGroup().location]"
+        },
+        "autoPatchingSettings": {
+          "Enable": true,
+          "DayOfWeek": "Sunday",
+          "MaintenanceWindowStartingHour": "2",
+          "MaintenanceWindowDuration": "60"
+        },
+        "KeyVaultCredentialSettings": {
+          "Enable": false
+        },
+        "ServerConfigurationsManagementSettings": {
+          "SQLConnectivityUpdateSettings": {
+            "ConnectivityType": "Private",
+            "Port": "[parameters('sqlPortNumber')]"
+          },
+          "SQLWorkloadTypeUpdateSettings": {
+            "SQLWorkloadType": "OLTP"
+          },
+          "SQLStorageUpdateSettings": {
+            "DiskCount": 2,
+            "StartingDeviceID": 1,
+            "DiskConfigurationType": "NEW"
+          },
+          "AdditionalFeaturesServerConfigurations": {
+            "IsRServicesEnabled": "false"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "adminUsername": {
+      "type": "string",
+      "value": "[parameters('adminUsername')]"
+    }
+  }
+}

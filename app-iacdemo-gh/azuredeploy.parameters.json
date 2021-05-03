@@ -1,0 +1,64 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "tagvalues": {
+      "value": {
+        "resourceOwner": "Wahid Saleemi",
+        "environment": "Development",
+        "costCenter": "04181"
+      }
+    },
+    "storageAccountNamePrefix": {
+      "value": "wss1medium"
+    },
+    "SqlVmName": {
+      "value": "vm-sql1"
+    },
+    "SqlVmName2": {
+      "value": "vm-sql2"
+    },
+    "adminUsername": {
+      "value": "wasaleem"
+    },
+    "adminPassword": {
+      "value": ""
+    },
+    "ResourceGroupForVNET": {
+      "value": "rg-test1"
+    },
+    "virtualNetworkName": {
+      "value": "sz-servers-ue2-p-vnt-01"
+    },
+    "SqlSubnetName": {
+      "value": "sz-servers-vm-ue2-d-nsn-172.21.5.0_24"
+    },
+    "webSubnetName": {
+      "value": "sz-servers-vm-ue2-d-nsn-172.21.5.0_24"
+    },
+    "SQLAvSetName": {
+      "value": "avset-iacdemoapp-sql-dev"
+    },
+    "SQLLoadBalancerName": {
+      "value": "lb-iacdemoapp-sql-dev"
+    },
+    "sqlDataSizeTB": {
+      "value": 2
+    },
+    "sqlLogSizeTB": {
+      "value": 1
+    },
+    "webVmName": {
+      "value": "vm-web1"
+    },
+    "webVmName2": {
+      "value": "vm-web2"
+    },
+    "webAvSetName": {
+      "value": "avset-iacdemo-web-dev"
+    },
+    "webLoadBalancerName": {
+      "value": "lb-iacdemo-web-dev"
+    }
+  }
+}
